@@ -10,6 +10,8 @@
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: #edf3fb;
+            touch-action: manipulation; /* 防止iOS雙擊縮放 */
+            -webkit-tap-highlight-color: transparent; /* 移除iOS點擊高亮 */
         }
         .game-container {
             max-width: 500px;
@@ -17,17 +19,45 @@
             padding: 20px;
         }
         .number-btn {
-            transition: all 0.2s ease;
+            transition: transform 0.2s ease;
+            -webkit-tap-highlight-color: transparent; /* 移除iOS點擊高亮 */
+            user-select: none; /* 防止文本選擇 */
+            touch-action: manipulation; /* 優化移動設備觸控 */
+            position: relative; /* 用於偽元素定位 */
+            overflow: hidden; /* 隱藏溢出內容 */
         }
-        .number-btn:hover {
-            transform: scale(1.05);
-        }
+        /* 修復閃爍問題 */
         .number-btn:active {
             transform: scale(0.95);
+            background-color: #b3d4fc !important;
+        }
+        /* 僅在非觸摸設備上使用懸停效果 */
+        @media (hover: hover) {
+            .number-btn:hover {
+                transform: scale(1.05);
+                background-color: #dbeafe;
+            }
         }
         .table-container {
             overflow-x: auto;
             max-width: 100%;
+        }
+        /* 優化移動設備表格 */
+        @media (max-width: 640px) {
+            .mobile-table th, 
+            .mobile-table td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.875rem;
+            }
+            .game-info {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+            }
+            .game-info div {
+                flex: 0 0 auto;
+                margin-bottom: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -57,13 +87,20 @@
                 highScore60: localStorage.getItem('highScore60') ? parseInt(localStorage.getItem('highScore60')) : 0,
                 recentGames: JSON.parse(localStorage.getItem('recentGames') || '[]'),
                 selectedNumber: null,
-                timer: null
+                timer: null,
+                lastButtonClickTime: 0 // 記錄最後一次按鈕點擊時間，防止重複點擊
             },
 
             // 初始化遊戲
             init() {
                 this.loadGameData();
                 this.renderGame();
+                // 防止iOS雙擊縮放
+                document.addEventListener('touchstart', function(event){
+                    if(event.touches.length > 1){
+                        event.preventDefault();
+                    }
+                }, { passive: false });
             },
 
             // 載入遊戲數據
@@ -188,6 +225,11 @@
 
             // 檢查答案
             checkAnswer(selected) {
+                // 防止連續快速點擊
+                const now = Date.now();
+                if (now - this.state.lastButtonClickTime < 300) return;
+                this.state.lastButtonClickTime = now;
+
                 if (this.state.answered) return; // 防止重複點擊
                 
                 this.state.selectedNumber = selected;
@@ -319,7 +361,8 @@
                         attempts: this.state.totalAttempts
                     };
                     
-                    const updatedRecentGames = [newGame, ...this.state.recentGames.slice(0, 2)];
+                    // 限制只保存最近1次記錄
+                    const updatedRecentGames = [newGame];
                     localStorage.setItem('recentGames', JSON.stringify(updatedRecentGames));
                     
                     this.state.isPlaying = false;
@@ -350,26 +393,24 @@
                                 <div class="mb-6">
                                     <h3 class="text-xl font-bold mb-2">最近遊戲記錄:</h3>
                                     <div class="table-container">
-                                        <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
+                                        <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-md mobile-table">
                                             <thead class="bg-blue-100">
                                                 <tr>
-                                                    <th class="py-2 px-4 text-left">時間</th>
-                                                    <th class="py-2 px-4 text-left">模式</th>
-                                                    <th class="py-2 px-4 text-left">答對數</th>
-                                                    <th class="py-2 px-4 text-left">答錯數</th>
-                                                    <th class="py-2 px-4 text-left">正確率</th>
-                                                    <th class="py-2 px-4 text-left">PR值</th>
+                                                    <th class="py-2 px-1 text-center">模式</th>
+                                                    <th class="py-2 px-1 text-center">答對</th>
+                                                    <th class="py-2 px-1 text-center">答錯</th>
+                                                    <th class="py-2 px-1 text-center">正確率</th>
+                                                    <th class="py-2 px-1 text-center">PR值</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 ${this.state.recentGames.map((game, index) => `
                                                     <tr class="${index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}">
-                                                        <td class="py-2 px-4">${game.date || '—'}</td>
-                                                        <td class="py-2 px-4">${game.mode || '—'}</td>
-                                                        <td class="py-2 px-4">${game.score !== undefined ? game.score : '—'}</td>
-                                                        <td class="py-2 px-4">${game.wrongAnswers !== undefined ? game.wrongAnswers : '—'}</td>
-                                                        <td class="py-2 px-4">${game.accuracy !== undefined ? game.accuracy + '%' : '—'}</td>
-                                                        <td class="py-2 px-4">${game.pr !== undefined ? game.pr : '—'}</td>
+                                                        <td class="py-2 px-1 text-center">${game.mode || '—'}</td>
+                                                        <td class="py-2 px-1 text-center">${game.score !== undefined ? game.score : '—'}</td>
+                                                        <td class="py-2 px-1 text-center">${game.wrongAnswers !== undefined ? game.wrongAnswers : '—'}</td>
+                                                        <td class="py-2 px-1 text-center">${game.accuracy !== undefined ? game.accuracy + '%' : '—'}</td>
+                                                        <td class="py-2 px-1 text-center">${game.pr !== undefined ? game.pr : '—'}</td>
                                                     </tr>
                                                 `).join('')}
                                             </tbody>
@@ -415,10 +456,21 @@
                         `;
                         
                         // 附加事件監聽器
-                        document.getElementById('mode-30')?.addEventListener('click', () => this.switchGameMode('30秒'));
-                        document.getElementById('mode-60')?.addEventListener('click', () => this.switchGameMode('60秒'));
-                        document.getElementById('start-btn')?.addEventListener('click', () => this.startGame());
+                        const mode30Button = document.getElementById('mode-30');
+                        const mode60Button = document.getElementById('mode-60');
+                        const startButton = document.getElementById('start-btn');
                         
+                        if (mode30Button) {
+                            this.addTouchHandlers(mode30Button, () => this.switchGameMode('30秒'));
+                        }
+                        
+                        if (mode60Button) {
+                            this.addTouchHandlers(mode60Button, () => this.switchGameMode('60秒'));
+                        }
+                        
+                        if (startButton) {
+                            this.addTouchHandlers(startButton, () => this.startGame());
+                        }
                     } else {
                         // 遊戲進行中的畫面
                         let numbersHTML = '';
@@ -427,18 +479,21 @@
                             const isCorrect = isSelected && i === this.state.current.answer;
                             const isWrong = isSelected && i !== this.state.current.answer;
                             
-                            const buttonClass = isSelected
-                                ? (isCorrect ? 'bg-green-500 text-white' : (isWrong ? 'bg-red-500 text-white' : 'bg-blue-100'))
-                                : 'bg-blue-100 hover:bg-blue-200';
+                            let buttonClass = 'bg-blue-100';
+                            if (isSelected) {
+                                buttonClass = isCorrect ? 'bg-green-500 text-white' : (isWrong ? 'bg-red-500 text-white' : 'bg-blue-100');
+                            }
                             
                             numbersHTML += `
-                                <button
-                                    id="num-${i}"
-                                    class="number-btn p-4 text-xl font-bold rounded-lg transition-all ${buttonClass} ${this.state.answered ? 'opacity-70' : 'opacity-100'}"
-                                    ${this.state.answered ? 'disabled' : ''}
-                                >
-                                    ${i}
-                                </button>
+                                <div class="relative">
+                                    <button
+                                        id="num-${i}"
+                                        class="number-btn w-full p-4 text-xl font-bold rounded-lg ${buttonClass} ${this.state.answered ? 'opacity-70' : 'opacity-100'}"
+                                        ${this.state.answered ? 'disabled' : ''}
+                                    >
+                                        ${i}
+                                    </button>
+                                </div>
                             `;
                         }
                         
@@ -446,7 +501,7 @@
                             <div>
                                 <h1 class="text-3xl font-bold mb-4 text-blue-800 text-center">數字等式認知遊戲</h1>
                                 <div class="w-full max-w-md mx-auto">
-                                    <div class="flex justify-between mb-4">
+                                    <div class="flex justify-between mb-4 game-info">
                                         <div class="text-lg">等級: <span class="font-bold">${this.state.level}</span></div>
                                         <div class="text-lg">分數: <span class="font-bold">${this.state.score}</span></div>
                                         <div class="text-lg">時間: <span class="font-bold">${this.state.timeLeft}</span></div>
@@ -473,7 +528,7 @@
                         for (let i = 1; i <= 9; i++) {
                             const numButton = document.getElementById(`num-${i}`);
                             if (numButton && !this.state.answered) {
-                                numButton.addEventListener('click', () => this.checkAnswer(i));
+                                this.addTouchHandlers(numButton, () => this.checkAnswer(i));
                             }
                         }
                     }
@@ -492,6 +547,43 @@
                         `;
                     }
                 }
+            },
+
+            // 添加觸控事件處理
+            addTouchHandlers(element, callback) {
+                // 防止連續觸發多次
+                let isTouchActive = false;
+                
+                element.addEventListener('touchstart', function(e) {
+                    if (!isTouchActive) {
+                        isTouchActive = true;
+                        this.classList.add('active');
+                        e.preventDefault(); // 防止默認行為和其他事件
+                    }
+                }, { passive: false });
+                
+                element.addEventListener('touchend', function(e) {
+                    if (isTouchActive) {
+                        this.classList.remove('active');
+                        isTouchActive = false;
+                        callback();
+                        e.preventDefault(); // 防止默認行為和事件冒泡
+                    }
+                }, { passive: false });
+                
+                // 如果滑出按鈕區域，取消點擊
+                element.addEventListener('touchcancel', function() {
+                    this.classList.remove('active');
+                    isTouchActive = false;
+                });
+                
+                // 同時支持滑鼠點擊
+                element.addEventListener('click', function(e) {
+                    // 在非觸摸設備上才執行點擊
+                    if (!('ontouchstart' in window) || !isTouchActive) {
+                        callback();
+                    }
+                });
             }
         };
 
@@ -499,6 +591,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             try {
                 CognitiveGame.init();
+                
+                // 防止頁面上的雙擊縮放
+                document.addEventListener('dblclick', function(e) {
+                    e.preventDefault();
+                });
+                
+                // 防止頁面縮放
+                document.addEventListener('gesturestart', function(e) {
+                    e.preventDefault();
+                });
             } catch (error) {
                 console.error('遊戲初始化出錯:', error);
                 const gameElement = document.getElementById('game');
