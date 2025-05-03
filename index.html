@@ -59,6 +59,29 @@
                 margin-bottom: 0.5rem;
             }
         }
+        /* 解決時間模式文字跑版 */
+        .mode-button {
+            display: inline-block;
+            width: 120px;
+            white-space: nowrap;
+        }
+        /* 高分榜樣式 */
+        .high-score-board {
+            background-color: #f0f7ff;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .high-score-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .high-score-item:last-child {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -83,9 +106,9 @@
                 questions: [],
                 currentQuestionIndex: 0,
                 gameMode: '30秒',
-                highScore: localStorage.getItem('highScore30') ? parseInt(localStorage.getItem('highScore30')) : 0,
-                highScore60: localStorage.getItem('highScore60') ? parseInt(localStorage.getItem('highScore60')) : 0,
-                recentGames: JSON.parse(localStorage.getItem('recentGames') || '[]'),
+                highScores30: [], // 存儲30秒模式的高分
+                highScores60: [], // 存儲60秒模式的高分
+                recentGames: [],
                 selectedNumber: null,
                 timer: null,
                 lastButtonClickTime: 0 // 記錄最後一次按鈕點擊時間，防止重複點擊
@@ -106,17 +129,26 @@
             // 載入遊戲數據
             loadGameData() {
                 try {
-                    const highScore30 = localStorage.getItem('highScore30');
-                    const highScore60 = localStorage.getItem('highScore60');
-                    const recentGames = localStorage.getItem('recentGames');
+                    // 載入高分記錄
+                    const highScores30 = localStorage.getItem('highScores30');
+                    const highScores60 = localStorage.getItem('highScores60');
+                    this.state.highScores30 = highScores30 ? JSON.parse(highScores30) : [];
+                    this.state.highScores60 = highScores60 ? JSON.parse(highScores60) : [];
                     
-                    this.state.highScore = highScore30 ? parseInt(highScore30) : 0;
-                    this.state.highScore60 = highScore60 ? parseInt(highScore60) : 0;
+                    // 確保高分記錄是數組
+                    if (!Array.isArray(this.state.highScores30)) this.state.highScores30 = [];
+                    if (!Array.isArray(this.state.highScores60)) this.state.highScores60 = [];
+                    
+                    // 載入最近遊戲記錄
+                    const recentGames = localStorage.getItem('recentGames');
                     this.state.recentGames = recentGames ? JSON.parse(recentGames) : [];
+                    
+                    // 確保最近遊戲記錄是數組
+                    if (!Array.isArray(this.state.recentGames)) this.state.recentGames = [];
                 } catch (error) {
                     console.error('載入遊戲數據出錯:', error);
-                    this.state.highScore = 0;
-                    this.state.highScore60 = 0;
+                    this.state.highScores30 = [];
+                    this.state.highScores60 = [];
                     this.state.recentGames = [];
                 }
             },
@@ -182,7 +214,6 @@
             // 切換遊戲模式
             switchGameMode(mode) {
                 this.state.gameMode = mode;
-                this.state.highScore = mode === '30秒' ? this.state.highScore : this.state.highScore60;
                 this.renderGame();
             },
 
@@ -324,6 +355,36 @@
                 }
             },
 
+            // 更新高分記錄
+            updateHighScores(score, mode) {
+                try {
+                    const highScores = mode === '30秒' ? this.state.highScores30 : this.state.highScores60;
+                    
+                    // 添加新分數
+                    highScores.push({
+                        score: score,
+                        date: this.formatTime(new Date())
+                    });
+                    
+                    // 按分數降序排列
+                    highScores.sort((a, b) => b.score - a.score);
+                    
+                    // 只保留前兩名
+                    const topScores = highScores.slice(0, 2);
+                    
+                    // 更新狀態
+                    if (mode === '30秒') {
+                        this.state.highScores30 = topScores;
+                        localStorage.setItem('highScores30', JSON.stringify(topScores));
+                    } else {
+                        this.state.highScores60 = topScores;
+                        localStorage.setItem('highScores60', JSON.stringify(topScores));
+                    }
+                } catch (error) {
+                    console.error('更新高分記錄出錯:', error);
+                }
+            },
+
             // 結束遊戲
             endGame() {
                 try {
@@ -331,8 +392,6 @@
                     
                     const currentScore = this.state.score;
                     const currentMode = this.state.gameMode;
-                    const highScoreKey = currentMode === '30秒' ? 'highScore30' : 'highScore60';
-                    const currentHighScore = currentMode === '30秒' ? this.state.highScore : this.state.highScore60;
                     
                     // 計算PR值和正確率
                     const pr = this.calculatePR(currentScore);
@@ -340,15 +399,8 @@
                         ? Math.round((this.state.score / this.state.totalAttempts) * 100) 
                         : 0;
                     
-                    // 更新最高分
-                    if (currentScore > currentHighScore) {
-                        localStorage.setItem(highScoreKey, currentScore.toString());
-                        if (currentMode === '30秒') {
-                            this.state.highScore = currentScore;
-                        } else {
-                            this.state.highScore60 = currentScore;
-                        }
-                    }
+                    // 更新高分記錄
+                    this.updateHighScores(currentScore, currentMode);
                     
                     // 更新最近遊戲記錄
                     const newGame = {
@@ -361,12 +413,15 @@
                         attempts: this.state.totalAttempts
                     };
                     
-                    // 限制只保存最近1次記錄
-                    const updatedRecentGames = [newGame];
-                    localStorage.setItem('recentGames', JSON.stringify(updatedRecentGames));
+                    // 添加到記錄列表的頂部，最多保存5條記錄
+                    this.state.recentGames.unshift(newGame);
+                    if (this.state.recentGames.length > 5) {
+                        this.state.recentGames = this.state.recentGames.slice(0, 5);
+                    }
+                    
+                    localStorage.setItem('recentGames', JSON.stringify(this.state.recentGames));
                     
                     this.state.isPlaying = false;
-                    this.state.recentGames = updatedRecentGames;
                     this.state.feedback = `遊戲結束！答對：${currentScore}題，答錯：${this.state.wrongAnswers}題，正確率：${accuracy}%，PR值：${pr}`;
                     
                     this.renderGame();
@@ -378,6 +433,13 @@
                 }
             },
 
+            // 獲取當前模式的最高分
+            getCurrentModeHighScores() {
+                return this.state.gameMode === '30秒' 
+                    ? this.state.highScores30 
+                    : this.state.highScores60;
+            },
+
             // 渲染遊戲畫面
             renderGame() {
                 try {
@@ -386,6 +448,26 @@
                     
                     if (!this.state.isPlaying) {
                         // 遊戲未開始或已結束的畫面
+                        
+                        // 生成高分榜
+                        const highScores = this.getCurrentModeHighScores();
+                        let highScoreHTML = '';
+                        
+                        if (highScores.length > 0) {
+                            highScoreHTML = `
+                                <div class="high-score-board">
+                                    <h3 class="text-lg font-bold mb-2">${this.state.gameMode}模式最高記錄:</h3>
+                                    ${highScores.map((score, index) => `
+                                        <div class="high-score-item">
+                                            <span class="font-medium">${index + 1}. ${score.score}分</span>
+                                            <span class="text-gray-600 text-sm">${score.date || '未知日期'}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `;
+                        }
+                        
+                        // 生成最近遊戲記錄
                         let recentGamesHTML = '';
                         
                         if (this.state.recentGames.length > 0) {
@@ -423,29 +505,27 @@
                         gameElement.innerHTML = `
                             <div class="text-center">
                                 <h1 class="text-3xl font-bold mb-4 text-blue-800">數字等式認知遊戲</h1>
+                                
                                 <p class="mb-4 text-lg">${this.state.feedback || '歡迎來到數字等式認知遊戲！請選擇時間模式並點擊開始按鈕。'}</p>
                                 
                                 <div class="mb-6 flex justify-center gap-4">
-                                    <button id="mode-30" class="px-4 py-2 rounded-lg transition-colors ${
+                                    <button id="mode-30" class="mode-button px-4 py-2 rounded-lg transition-colors ${
                                         this.state.gameMode === '30秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
                                     }">
                                         30秒模式
                                     </button>
-                                    <button id="mode-60" class="px-4 py-2 rounded-lg transition-colors ${
+                                    <button id="mode-60" class="mode-button px-4 py-2 rounded-lg transition-colors ${
                                         this.state.gameMode === '60秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
                                     }">
                                         60秒模式
                                     </button>
                                 </div>
                                 
-                                <div class="mb-6">
+                                <div class="mb-4 text-center">
                                     <p class="text-lg">目前模式: <span class="font-bold">${this.state.gameMode}</span></p>
-                                    <p class="text-lg">
-                                        最高紀錄: <span class="font-bold">
-                                            ${this.state.gameMode === '30秒' ? this.state.highScore : this.state.highScore60}
-                                        </span>
-                                    </p>
                                 </div>
+                                
+                                ${highScoreHTML}
                                 
                                 ${recentGamesHTML}
                                 
@@ -577,46 +657,4 @@
                     isTouchActive = false;
                 });
                 
-                // 同時支持滑鼠點擊
-                element.addEventListener('click', function(e) {
-                    // 在非觸摸設備上才執行點擊
-                    if (!('ontouchstart' in window) || !isTouchActive) {
-                        callback();
-                    }
-                });
-            }
-        };
-
-        // 初始化遊戲
-        document.addEventListener('DOMContentLoaded', () => {
-            try {
-                CognitiveGame.init();
-                
-                // 防止頁面上的雙擊縮放
-                document.addEventListener('dblclick', function(e) {
-                    e.preventDefault();
-                });
-                
-                // 防止頁面縮放
-                document.addEventListener('gesturestart', function(e) {
-                    e.preventDefault();
-                });
-            } catch (error) {
-                console.error('遊戲初始化出錯:', error);
-                const gameElement = document.getElementById('game');
-                if (gameElement) {
-                    gameElement.innerHTML = `
-                        <div class="text-center">
-                            <h1 class="text-3xl font-bold mb-4 text-red-600">出現錯誤</h1>
-                            <p class="mb-4">遊戲初始化時發生錯誤，請重新整理頁面。</p>
-                            <button onclick="location.reload()" class="px-6 py-2 bg-blue-500 text-white rounded-lg">
-                                重新整理
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-        });
-    </script>
-</body>
-</html>
+                // 同時支持滑
