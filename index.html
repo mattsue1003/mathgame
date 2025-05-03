@@ -195,13 +195,21 @@
                     timer: null,
                     highScores30: [],
                     highScores60: [],
-                    recentGames: []
+                    recentGames: [],
+                    questionCache: [] // 用於緩存題目，避免重複生成
                 },
 
                 // 初始化
                 init: function() {
                     this.loadData();
+                    // 預先生成100題的題庫，提高效率
+                    this.preGenerateQuestions();
                     this.render();
+                },
+
+                // 預先生成問題
+                preGenerateQuestions: function() {
+                    this.state.questionCache = Array(100).fill().map(() => this.generateQuestion());
                 },
 
                 // 載入遊戲數據
@@ -243,6 +251,7 @@
                     let a, b, result, question, answer;
                     
                     if (isAddition) {
+                        // 加法題目
                         a = Math.floor(Math.random() * (max - min + 1)) + min;
                         b = Math.floor(Math.random() * (max - min + 1)) + min;
                         result = a + b;
@@ -251,16 +260,10 @@
                             b = Math.min(9 - a, b);
                             result = a + b;
                         }
-                    } else {
-                        result = Math.floor(Math.random() * (max - min + 1)) + min;
-                        a = result + Math.floor(Math.random() * (Math.min(9 - result, 9 - 1) + 1));
-                        b = a - result;
-                    }
-                    
-                    // 決定隱藏位置
-                    const position = Math.floor(Math.random() * 3);
-                    
-                    if (isAddition) {
+                        
+                        // 決定隱藏位置
+                        const position = Math.floor(Math.random() * 3);
+                        
                         switch (position) {
                             case 0: question = `? + ${b} = ${result}`; answer = a; break;
                             case 1: question = `${a} + ? = ${result}`; answer = b; break;
@@ -268,12 +271,39 @@
                             default: question = `${a} + ${b} = ?`; answer = result;
                         }
                     } else {
+                        // 減法題目 - 確保結果不是0
+                        let validQuestion = false;
+                        
+                        while (!validQuestion) {
+                            result = Math.floor(Math.random() * (max - min + 1)) + min;
+                            
+                            // 確保結果不是0，必須在1-9之間
+                            if (result >= 1 && result <= 9) {
+                                a = result + Math.floor(Math.random() * (Math.min(9 - result, 9 - 1) + 1));
+                                b = a - result;
+                                
+                                // 檢查a和b都在1-9範圍內
+                                if (a >= 1 && a <= 9 && b >= 1 && b <= 9) {
+                                    validQuestion = true;
+                                }
+                            }
+                        }
+                        
+                        // 決定隱藏位置
+                        const position = Math.floor(Math.random() * 3);
+                        
                         switch (position) {
                             case 0: question = `? - ${b} = ${result}`; answer = a; break;
                             case 1: question = `${a} - ? = ${result}`; answer = b; break;
                             case 2: question = `${a} - ${b} = ?`; answer = result; break;
                             default: question = `${a} - ${b} = ?`; answer = result;
                         }
+                    }
+                    
+                    // 確保答案在1-9範圍內
+                    if (answer < 1 || answer > 9) {
+                        // 如果答案不在範圍內，重新生成問題
+                        return this.generateQuestion();
                     }
                     
                     return { question, answer };
@@ -297,8 +327,8 @@
                     this.state.answered = false;
                     this.state.selectedNumber = null;
                     
-                    // 生成題目
-                    this.state.questions = Array(50).fill().map(() => this.generateQuestion());
+                    // 使用緩存的題目，避免遊戲中生成題目導致卡頓
+                    this.state.questions = this.state.questionCache.slice(0, 50);
                     this.state.questionIndex = 0;
                     this.state.currentQuestion = this.state.questions[0];
                     
@@ -313,6 +343,11 @@
                     }, 1000);
                     
                     this.render();
+                    
+                    // 遊戲結束後預生成下一輪題目
+                    setTimeout(() => {
+                        this.preGenerateQuestions();
+                    }, 500);
                 },
 
                 // 檢查答案
@@ -450,6 +485,11 @@
                     this.state.feedback = `遊戲結束！答對：${score}題，答錯：${this.state.wrongAnswers}題，正確率：${accuracy}%，PR值：${pr}`;
                     
                     this.render();
+                    
+                    // 背景預生成下一輪題目
+                    setTimeout(() => {
+                        this.preGenerateQuestions();
+                    }, 100);
                 },
 
                 // 渲染畫面
