@@ -4,187 +4,260 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>數字等式認知遊戲</title>
-    <!-- 使用CDN加載Tailwind CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
     <style>
         body {
             font-family: 'Helvetica Neue', Arial, sans-serif;
             background-color: #edf3fb;
-            touch-action: manipulation; /* 防止iOS雙擊縮放 */
-            -webkit-tap-highlight-color: transparent; /* 移除iOS點擊高亮 */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
         }
-        .game-container {
+        .container {
             max-width: 500px;
-            margin: 0 auto;
+            width: 100%;
             padding: 20px;
         }
-        .number-btn {
-            transition: transform 0.2s ease;
-            -webkit-tap-highlight-color: transparent; /* 移除iOS點擊高亮 */
-            user-select: none; /* 防止文本選擇 */
-            touch-action: manipulation; /* 優化移動設備觸控 */
-            position: relative; /* 用於偽元素定位 */
-            overflow: hidden; /* 隱藏溢出內容 */
+        h1 {
+            color: #2563eb;
+            text-align: center;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
         }
-        /* 修復閃爍問題 */
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .info-item {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        .question-box {
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .question {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .feedback {
+            margin-top: 1rem;
+            font-size: 1.2rem;
+        }
+        .success {
+            color: #16a34a;
+        }
+        .error {
+            color: #dc2626;
+        }
+        .number-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+        }
+        .number-btn {
+            background-color: #dbeafe;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            font-size: 1.25rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s, background-color 0.1s;
+        }
         .number-btn:active {
             transform: scale(0.95);
-            background-color: #b3d4fc !important;
+            background-color: #93c5fd;
         }
-        /* 僅在非觸摸設備上使用懸停效果 */
-        @media (hover: hover) {
-            .number-btn:hover {
-                transform: scale(1.05);
-                background-color: #dbeafe;
-            }
+        .number-btn.correct {
+            background-color: #22c55e;
+            color: white;
         }
-        .table-container {
-            overflow-x: auto;
-            max-width: 100%;
+        .number-btn.wrong {
+            background-color: #ef4444;
+            color: white;
         }
-        /* 優化移動設備表格 */
-        @media (max-width: 640px) {
-            .mobile-table th, 
-            .mobile-table td {
-                padding: 0.5rem 0.25rem;
-                font-size: 0.875rem;
-            }
-            .game-info {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: space-between;
-            }
-            .game-info div {
-                flex: 0 0 auto;
-                margin-bottom: 0.5rem;
-            }
+        .mode-section {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
-        /* 解決時間模式文字跑版 */
-        .mode-button {
-            display: inline-block;
+        .mode-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
             width: 120px;
             white-space: nowrap;
         }
-        /* 高分榜樣式 */
-        .high-score-board {
+        .mode-btn.active {
+            background-color: #2563eb;
+            color: white;
+        }
+        .mode-btn.inactive {
+            background-color: #dbeafe;
+            color: #1e3a8a;
+        }
+        .start-btn {
+            display: block;
+            margin: 1.5rem auto;
+            padding: 0.75rem 1.5rem;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .start-btn:hover {
+            background-color: #059669;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+        }
+        th {
+            background-color: #dbeafe;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        td {
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .high-score {
             background-color: #f0f7ff;
             border-radius: 0.5rem;
             padding: 1rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            margin-bottom: 1rem;
         }
-        .high-score-item {
+        .high-score h3 {
+            margin-top: 0;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        .score-item {
             display: flex;
             justify-content: space-between;
             padding: 0.5rem 0;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e5e7eb;
         }
-        .high-score-item:last-child {
+        .score-item:last-child {
             border-bottom: none;
         }
     </style>
 </head>
 <body>
-    <div class="container mx-auto px-4 py-8">
-        <div id="game" class="game-container"></div>
+    <div class="container">
+        <div id="game"></div>
     </div>
 
     <script>
-        // 遊戲主程式
-        const CognitiveGame = {
-            // 遊戲狀態
-            state: {
-                level: 1,
-                score: 0,
-                totalAttempts: 0,
-                wrongAnswers: 0,
-                current: null,
-                answered: false,
-                feedback: '',
-                timeLeft: 30,
-                isPlaying: false,
-                questions: [],
-                currentQuestionIndex: 0,
-                gameMode: '30秒',
-                highScores30: [], // 存儲30秒模式的高分
-                highScores60: [], // 存儲60秒模式的高分
-                recentGames: [],
-                selectedNumber: null,
-                timer: null,
-                lastButtonClickTime: 0 // 記錄最後一次按鈕點擊時間，防止重複點擊
-            },
+        document.addEventListener('DOMContentLoaded', function() {
+            const game = {
+                // 遊戲狀態
+                state: {
+                    level: 1,
+                    score: 0,
+                    wrongAnswers: 0,
+                    totalAttempts: 0,
+                    currentQuestion: null,
+                    feedback: '',
+                    timeLeft: 30,
+                    isPlaying: false,
+                    mode: '30秒',
+                    selectedNumber: null,
+                    answered: false,
+                    questions: [],
+                    questionIndex: 0,
+                    timer: null,
+                    highScores30: [],
+                    highScores60: [],
+                    recentGames: []
+                },
 
-            // 初始化遊戲
-            init() {
-                this.loadGameData();
-                this.renderGame();
-                // 防止iOS雙擊縮放
-                document.addEventListener('touchstart', function(event){
-                    if(event.touches.length > 1){
-                        event.preventDefault();
+                // 初始化
+                init: function() {
+                    this.loadData();
+                    this.render();
+                },
+
+                // 載入遊戲數據
+                loadData: function() {
+                    try {
+                        const highScores30 = localStorage.getItem('highScores30');
+                        const highScores60 = localStorage.getItem('highScores60');
+                        const recentGames = localStorage.getItem('recentGames');
+
+                        this.state.highScores30 = highScores30 ? JSON.parse(highScores30) : [];
+                        this.state.highScores60 = highScores60 ? JSON.parse(highScores60) : [];
+                        this.state.recentGames = recentGames ? JSON.parse(recentGames) : [];
+
+                        if (!Array.isArray(this.state.highScores30)) this.state.highScores30 = [];
+                        if (!Array.isArray(this.state.highScores60)) this.state.highScores60 = [];
+                        if (!Array.isArray(this.state.recentGames)) this.state.recentGames = [];
+                    } catch (error) {
+                        console.error('載入數據錯誤:', error);
+                        this.state.highScores30 = [];
+                        this.state.highScores60 = [];
+                        this.state.recentGames = [];
                     }
-                }, { passive: false });
-            },
+                },
 
-            // 載入遊戲數據
-            loadGameData() {
-                try {
-                    // 載入高分記錄
-                    const highScores30 = localStorage.getItem('highScores30');
-                    const highScores60 = localStorage.getItem('highScores60');
-                    this.state.highScores30 = highScores30 ? JSON.parse(highScores30) : [];
-                    this.state.highScores60 = highScores60 ? JSON.parse(highScores60) : [];
-                    
-                    // 確保高分記錄是數組
-                    if (!Array.isArray(this.state.highScores30)) this.state.highScores30 = [];
-                    if (!Array.isArray(this.state.highScores60)) this.state.highScores60 = [];
-                    
-                    // 載入最近遊戲記錄
-                    const recentGames = localStorage.getItem('recentGames');
-                    this.state.recentGames = recentGames ? JSON.parse(recentGames) : [];
-                    
-                    // 確保最近遊戲記錄是數組
-                    if (!Array.isArray(this.state.recentGames)) this.state.recentGames = [];
-                } catch (error) {
-                    console.error('載入遊戲數據出錯:', error);
-                    this.state.highScores30 = [];
-                    this.state.highScores60 = [];
-                    this.state.recentGames = [];
-                }
-            },
+                // 切換模式
+                switchMode: function(mode) {
+                    this.state.mode = mode;
+                    this.render();
+                },
 
-            // 生成問題
-            generateQuestion() {
-                try {
+                // 生成問題
+                generateQuestion: function() {
                     const max = Math.min(9, 3 + this.state.level);
                     const min = Math.max(1, this.state.level - 2);
                     
-                    // 決定是加法還是減法題目
+                    // 決定是加法還是減法
                     const isAddition = Math.random() > 0.5;
                     
                     let a, b, result, question, answer;
                     
                     if (isAddition) {
-                        // 加法題目
                         a = Math.floor(Math.random() * (max - min + 1)) + min;
                         b = Math.floor(Math.random() * (max - min + 1)) + min;
                         result = a + b;
                         
-                        // 如果結果超過9，重新生成數字確保結果在1-9範圍內
                         if (result > 9) {
-                            // 調整b使總和不超過9
                             b = Math.min(9 - a, b);
                             result = a + b;
                         }
                     } else {
-                        // 減法題目 - 確保結果為正數且在1-9範圍內
                         result = Math.floor(Math.random() * (max - min + 1)) + min;
                         a = result + Math.floor(Math.random() * (Math.min(9 - result, 9 - 1) + 1));
-                        // 計算減數
                         b = a - result;
                     }
                     
-                    // 決定隱藏哪個位置 (0 = 第一個數字, 1 = 第二個數字, 2 = 結果)
+                    // 決定隱藏位置
                     const position = Math.floor(Math.random() * 3);
                     
                     if (isAddition) {
@@ -203,176 +276,150 @@
                         }
                     }
                     
-                    return { question, answer, position, isAddition };
-                } catch (error) {
-                    console.error('生成問題出錯:', error);
-                    // 返回一個簡單的默認問題
-                    return { question: '1 + 1 = ?', answer: 2, position: 2, isAddition: true };
-                }
-            },
+                    return { question, answer };
+                },
 
-            // 切換遊戲模式
-            switchGameMode(mode) {
-                this.state.gameMode = mode;
-                this.renderGame();
-            },
-
-            // 開始遊戲
-            startGame() {
-                try {
-                    clearInterval(this.state.timer); // 清除可能存在的計時器
+                // 開始遊戲
+                startGame: function() {
+                    // 清除上一局的計時器
+                    if (this.state.timer) {
+                        clearInterval(this.state.timer);
+                    }
                     
-                    const newQuestion = this.generateQuestion();
-                    this.state.questions = Array(50).fill(null).map(() => this.generateQuestion());
-                    
+                    // 重置遊戲狀態
                     this.state.level = 1;
                     this.state.score = 0;
-                    this.state.totalAttempts = 0;
                     this.state.wrongAnswers = 0;
-                    this.state.current = newQuestion;
-                    this.state.answered = false;
+                    this.state.totalAttempts = 0;
                     this.state.feedback = '';
-                    this.state.timeLeft = this.state.gameMode === '30秒' ? 30 : 60;
+                    this.state.timeLeft = this.state.mode === '30秒' ? 30 : 60;
                     this.state.isPlaying = true;
-                    this.state.currentQuestionIndex = 0;
+                    this.state.answered = false;
                     this.state.selectedNumber = null;
+                    
+                    // 生成題目
+                    this.state.questions = Array(50).fill().map(() => this.generateQuestion());
+                    this.state.questionIndex = 0;
+                    this.state.currentQuestion = this.state.questions[0];
                     
                     // 啟動計時器
                     this.state.timer = setInterval(() => {
                         this.state.timeLeft--;
-                        this.renderGame();
+                        this.render();
                         
                         if (this.state.timeLeft <= 0) {
                             this.endGame();
                         }
                     }, 1000);
                     
-                    this.renderGame();
-                } catch (error) {
-                    console.error('開始遊戲出錯:', error);
-                    alert('遊戲啟動出錯，請重新整理頁面。');
-                }
-            },
+                    this.render();
+                },
 
-            // 檢查答案
-            checkAnswer(selected) {
-                // 防止連續快速點擊
-                const now = Date.now();
-                if (now - this.state.lastButtonClickTime < 300) return;
-                this.state.lastButtonClickTime = now;
-
-                if (this.state.answered) return; // 防止重複點擊
-                
-                this.state.selectedNumber = selected;
-                this.state.totalAttempts++;
-                
-                const isCorrect = selected === this.state.current.answer;
-                
-                if (isCorrect) {
-                    // 答對
-                    this.state.score++;
-                    this.state.level = Math.floor(this.state.score / 3) + 1;
-                    this.state.answered = true;
-                    this.state.feedback = '正確！';
+                // 檢查答案
+                checkAnswer: function(number) {
+                    if (this.state.answered) return;
                     
-                    // 渲染更新
-                    this.renderGame();
+                    this.state.selectedNumber = number;
+                    this.state.totalAttempts++;
                     
-                    // 移動到下一題
-                    if (this.state.currentQuestionIndex < this.state.questions.length - 1) {
+                    const isCorrect = number === this.state.currentQuestion.answer;
+                    
+                    if (isCorrect) {
+                        this.state.score++;
+                        this.state.level = Math.floor(this.state.score / 3) + 1;
+                        this.state.feedback = '正確！';
+                        this.state.answered = true;
+                        
+                        this.render();
+                        
+                        // 延遲切換到下一題
                         setTimeout(() => {
-                            this.state.current = this.state.questions[this.state.currentQuestionIndex + 1];
-                            this.state.currentQuestionIndex++;
-                            this.state.answered = false;
-                            this.state.feedback = '';
-                            this.state.selectedNumber = null;
-                            this.renderGame();
+                            if (this.state.questionIndex < this.state.questions.length - 1) {
+                                this.state.questionIndex++;
+                                this.state.currentQuestion = this.state.questions[this.state.questionIndex];
+                                this.state.answered = false;
+                                this.state.feedback = '';
+                                this.state.selectedNumber = null;
+                                this.render();
+                            } else {
+                                this.endGame();
+                            }
                         }, 300);
                     } else {
+                        this.state.wrongAnswers++;
+                        this.state.feedback = `錯誤！正確答案是 ${this.state.currentQuestion.answer}`;
+                        this.state.answered = true;
+                        
+                        this.render();
+                        
+                        // 延遲切換到下一題
                         setTimeout(() => {
-                            this.endGame();
-                        }, 300);
-                    }
-                } else {
-                    // 答錯
-                    this.state.wrongAnswers++;
-                    this.state.answered = true;
-                    this.state.feedback = `錯誤！正確答案是 ${this.state.current.answer}`;
-                    
-                    // 渲染更新
-                    this.renderGame();
-                    
-                    // 移動到下一題
-                    if (this.state.currentQuestionIndex < this.state.questions.length - 1) {
-                        setTimeout(() => {
-                            this.state.current = this.state.questions[this.state.currentQuestionIndex + 1];
-                            this.state.currentQuestionIndex++;
-                            this.state.answered = false;
-                            this.state.feedback = '';
-                            this.state.selectedNumber = null;
-                            this.renderGame();
-                        }, 800);
-                    } else {
-                        setTimeout(() => {
-                            this.endGame();
+                            if (this.state.questionIndex < this.state.questions.length - 1) {
+                                this.state.questionIndex++;
+                                this.state.currentQuestion = this.state.questions[this.state.questionIndex];
+                                this.state.answered = false;
+                                this.state.feedback = '';
+                                this.state.selectedNumber = null;
+                                this.render();
+                            } else {
+                                this.endGame();
+                            }
                         }, 800);
                     }
-                }
-            },
+                },
 
-            // 計算PR值
-            calculatePR(score) {
-                try {
+                // 計算PR值
+                calculatePR: function(score) {
                     const normalDistribution = {
-                        '30秒': [12, 5], 
+                        '30秒': [12, 5],
                         '60秒': [24, 8]
                     };
                     
-                    const [mean, stdDev] = normalDistribution[this.state.gameMode];
+                    const [mean, stdDev] = normalDistribution[this.state.mode];
                     const zScore = (score - mean) / stdDev;
                     const pr = Math.round(100 * (0.5 + 0.5 * Math.tanh(Math.sqrt(Math.PI/8) * zScore)));
                     
                     return Math.min(Math.max(pr, 1), 99);
-                } catch (error) {
-                    console.error('計算PR值出錯:', error);
-                    return 50; // 返回一個默認值
-                }
-            },
+                },
 
-            // 格式化時間
-            formatTime(date) {
-                try {
-                    const dateObj = new Date(date);
-                    const month = dateObj.getMonth() + 1;
-                    const day = dateObj.getDate();
-                    const hours = dateObj.getHours();
-                    const minutes = dateObj.getMinutes();
+                // 格式化時間
+                formatTime: function(date) {
+                    const d = new Date(date);
+                    const month = d.getMonth() + 1;
+                    const day = d.getDate();
+                    const hours = d.getHours();
+                    const minutes = d.getMinutes();
                     
                     return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                } catch (error) {
-                    console.error('格式化時間出錯:', error);
-                    return '時間格式錯誤';
-                }
-            },
+                },
 
-            // 更新高分記錄
-            updateHighScores(score, mode) {
-                try {
+                // 結束遊戲
+                endGame: function() {
+                    // 停止計時器
+                    clearInterval(this.state.timer);
+                    
+                    const score = this.state.score;
+                    const mode = this.state.mode;
+                    
+                    // 計算PR和正確率
+                    const pr = this.calculatePR(score);
+                    const accuracy = this.state.totalAttempts > 0 
+                        ? Math.round((score / this.state.totalAttempts) * 100) 
+                        : 0;
+                    
+                    // 更新高分榜
                     const highScores = mode === '30秒' ? this.state.highScores30 : this.state.highScores60;
                     
-                    // 添加新分數
                     highScores.push({
                         score: score,
                         date: this.formatTime(new Date())
                     });
                     
-                    // 按分數降序排列
                     highScores.sort((a, b) => b.score - a.score);
                     
                     // 只保留前兩名
                     const topScores = highScores.slice(0, 2);
                     
-                    // 更新狀態
                     if (mode === '30秒') {
                         this.state.highScores30 = topScores;
                         localStorage.setItem('highScores30', JSON.stringify(topScores));
@@ -380,40 +427,17 @@
                         this.state.highScores60 = topScores;
                         localStorage.setItem('highScores60', JSON.stringify(topScores));
                     }
-                } catch (error) {
-                    console.error('更新高分記錄出錯:', error);
-                }
-            },
-
-            // 結束遊戲
-            endGame() {
-                try {
-                    clearInterval(this.state.timer);
-                    
-                    const currentScore = this.state.score;
-                    const currentMode = this.state.gameMode;
-                    
-                    // 計算PR值和正確率
-                    const pr = this.calculatePR(currentScore);
-                    const accuracy = this.state.totalAttempts > 0 
-                        ? Math.round((this.state.score / this.state.totalAttempts) * 100) 
-                        : 0;
-                    
-                    // 更新高分記錄
-                    this.updateHighScores(currentScore, currentMode);
                     
                     // 更新最近遊戲記錄
                     const newGame = {
                         date: this.formatTime(new Date()),
-                        mode: currentMode,
-                        score: currentScore,
+                        mode: mode,
+                        score: score,
                         wrongAnswers: this.state.wrongAnswers,
-                        pr: pr,
                         accuracy: accuracy,
-                        attempts: this.state.totalAttempts
+                        pr: pr
                     };
                     
-                    // 添加到記錄列表的頂部，最多保存5條記錄
                     this.state.recentGames.unshift(newGame);
                     if (this.state.recentGames.length > 5) {
                         this.state.recentGames = this.state.recentGames.slice(0, 5);
@@ -421,240 +445,168 @@
                     
                     localStorage.setItem('recentGames', JSON.stringify(this.state.recentGames));
                     
+                    // 更新遊戲狀態
                     this.state.isPlaying = false;
-                    this.state.feedback = `遊戲結束！答對：${currentScore}題，答錯：${this.state.wrongAnswers}題，正確率：${accuracy}%，PR值：${pr}`;
+                    this.state.feedback = `遊戲結束！答對：${score}題，答錯：${this.state.wrongAnswers}題，正確率：${accuracy}%，PR值：${pr}`;
                     
-                    this.renderGame();
-                } catch (error) {
-                    console.error('結束遊戲出錯:', error);
-                    this.state.isPlaying = false;
-                    this.state.feedback = '遊戲結束時發生錯誤，請重新整理頁面。';
-                    this.renderGame();
-                }
-            },
+                    this.render();
+                },
 
-            // 獲取當前模式的最高分
-            getCurrentModeHighScores() {
-                return this.state.gameMode === '30秒' 
-                    ? this.state.highScores30 
-                    : this.state.highScores60;
-            },
-
-            // 渲染遊戲畫面
-            renderGame() {
-                try {
+                // 渲染畫面
+                render: function() {
                     const gameElement = document.getElementById('game');
-                    if (!gameElement) return;
                     
                     if (!this.state.isPlaying) {
-                        // 遊戲未開始或已結束的畫面
+                        // 主頁面
                         
                         // 生成高分榜
-                        const highScores = this.getCurrentModeHighScores();
+                        const highScores = this.state.mode === '30秒' 
+                            ? this.state.highScores30 
+                            : this.state.highScores60;
+                            
                         let highScoreHTML = '';
                         
                         if (highScores.length > 0) {
                             highScoreHTML = `
-                                <div class="high-score-board">
-                                    <h3 class="text-lg font-bold mb-2">${this.state.gameMode}模式最高記錄:</h3>
+                                <div class="high-score">
+                                    <h3>${this.state.mode}模式最高記錄:</h3>
                                     ${highScores.map((score, index) => `
-                                        <div class="high-score-item">
-                                            <span class="font-medium">${index + 1}. ${score.score}分</span>
-                                            <span class="text-gray-600 text-sm">${score.date || '未知日期'}</span>
+                                        <div class="score-item">
+                                            <span>${index + 1}. ${score.score}分</span>
+                                            <span>${score.date || '未知日期'}</span>
                                         </div>
                                     `).join('')}
                                 </div>
                             `;
                         }
                         
-                        // 生成最近遊戲記錄
+                        // 生成最近記錄
                         let recentGamesHTML = '';
                         
                         if (this.state.recentGames.length > 0) {
                             recentGamesHTML = `
-                                <div class="mb-6">
-                                    <h3 class="text-xl font-bold mb-2">最近遊戲記錄:</h3>
-                                    <div class="table-container">
-                                        <table class="min-w-full bg-white rounded-lg overflow-hidden shadow-md mobile-table">
-                                            <thead class="bg-blue-100">
-                                                <tr>
-                                                    <th class="py-2 px-1 text-center">模式</th>
-                                                    <th class="py-2 px-1 text-center">答對</th>
-                                                    <th class="py-2 px-1 text-center">答錯</th>
-                                                    <th class="py-2 px-1 text-center">正確率</th>
-                                                    <th class="py-2 px-1 text-center">PR值</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                ${this.state.recentGames.map((game, index) => `
-                                                    <tr class="${index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}">
-                                                        <td class="py-2 px-1 text-center">${game.mode || '—'}</td>
-                                                        <td class="py-2 px-1 text-center">${game.score !== undefined ? game.score : '—'}</td>
-                                                        <td class="py-2 px-1 text-center">${game.wrongAnswers !== undefined ? game.wrongAnswers : '—'}</td>
-                                                        <td class="py-2 px-1 text-center">${game.accuracy !== undefined ? game.accuracy + '%' : '—'}</td>
-                                                        <td class="py-2 px-1 text-center">${game.pr !== undefined ? game.pr : '—'}</td>
-                                                    </tr>
-                                                `).join('')}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
+                                <h3 style="margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.2rem;">最近遊戲記錄:</h3>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>模式</th>
+                                            <th>答對</th>
+                                            <th>答錯</th>
+                                            <th>正確率</th>
+                                            <th>PR值</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${this.state.recentGames.map(game => `
+                                            <tr>
+                                                <td>${game.mode || '—'}</td>
+                                                <td>${game.score !== undefined ? game.score : '—'}</td>
+                                                <td>${game.wrongAnswers !== undefined ? game.wrongAnswers : '—'}</td>
+                                                <td>${game.accuracy !== undefined ? game.accuracy + '%' : '—'}</td>
+                                                <td>${game.pr !== undefined ? game.pr : '—'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
                             `;
                         }
                         
                         gameElement.innerHTML = `
-                            <div class="text-center">
-                                <h1 class="text-3xl font-bold mb-4 text-blue-800">數字等式認知遊戲</h1>
-                                
-                                <p class="mb-4 text-lg">${this.state.feedback || '歡迎來到數字等式認知遊戲！請選擇時間模式並點擊開始按鈕。'}</p>
-                                
-                                <div class="mb-6 flex justify-center gap-4">
-                                    <button id="mode-30" class="mode-button px-4 py-2 rounded-lg transition-colors ${
-                                        this.state.gameMode === '30秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
-                                    }">
-                                        30秒模式
-                                    </button>
-                                    <button id="mode-60" class="mode-button px-4 py-2 rounded-lg transition-colors ${
-                                        this.state.gameMode === '60秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
-                                    }">
-                                        60秒模式
-                                    </button>
-                                </div>
-                                
-                                <div class="mb-4 text-center">
-                                    <p class="text-lg">目前模式: <span class="font-bold">${this.state.gameMode}</span></p>
-                                </div>
-                                
-                                ${highScoreHTML}
-                                
-                                ${recentGamesHTML}
-                                
-                                <button id="start-btn" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                                    開始遊戲
+                            <h1>數字等式認知遊戲</h1>
+                            
+                            <p style="text-align: center; margin-bottom: 1.5rem;">
+                                ${this.state.feedback || '歡迎來到數字等式認知遊戲！請選擇時間模式並點擊開始按鈕。'}
+                            </p>
+                            
+                            <div class="mode-section">
+                                <button class="mode-btn ${this.state.mode === '30秒' ? 'active' : 'inactive'}" id="mode-30">
+                                    30秒模式
+                                </button>
+                                <button class="mode-btn ${this.state.mode === '60秒' ? 'active' : 'inactive'}" id="mode-60">
+                                    60秒模式
                                 </button>
                             </div>
+                            
+                            <p style="text-align: center; margin-bottom: 1rem;">
+                                目前模式: <strong>${this.state.mode}</strong>
+                            </p>
+                            
+                            ${highScoreHTML}
+                            
+                            ${recentGamesHTML}
+                            
+                            <button class="start-btn" id="start-btn">開始遊戲</button>
                         `;
                         
-                        // 附加事件監聽器
-                        const mode30Button = document.getElementById('mode-30');
-                        const mode60Button = document.getElementById('mode-60');
-                        const startButton = document.getElementById('start-btn');
+                        // 添加事件監聽器
+                        document.getElementById('mode-30').addEventListener('click', () => this.switchMode('30秒'));
+                        document.getElementById('mode-60').addEventListener('click', () => this.switchMode('60秒'));
+                        document.getElementById('start-btn').addEventListener('click', () => this.startGame());
                         
-                        if (mode30Button) {
-                            this.addTouchHandlers(mode30Button, () => this.switchGameMode('30秒'));
-                        }
-                        
-                        if (mode60Button) {
-                            this.addTouchHandlers(mode60Button, () => this.switchGameMode('60秒'));
-                        }
-                        
-                        if (startButton) {
-                            this.addTouchHandlers(startButton, () => this.startGame());
-                        }
                     } else {
-                        // 遊戲進行中的畫面
+                        // 遊戲中
+                        
+                        // 生成數字按鈕
                         let numbersHTML = '';
+                        
                         for (let i = 1; i <= 9; i++) {
                             const isSelected = this.state.selectedNumber === i;
-                            const isCorrect = isSelected && i === this.state.current.answer;
-                            const isWrong = isSelected && i !== this.state.current.answer;
+                            const isCorrect = isSelected && i === this.state.currentQuestion.answer;
+                            const isWrong = isSelected && i !== this.state.currentQuestion.answer;
                             
-                            let buttonClass = 'bg-blue-100';
-                            if (isSelected) {
-                                buttonClass = isCorrect ? 'bg-green-500 text-white' : (isWrong ? 'bg-red-500 text-white' : 'bg-blue-100');
-                            }
+                            let btnClass = '';
+                            if (isCorrect) btnClass = 'correct';
+                            else if (isWrong) btnClass = 'wrong';
                             
                             numbersHTML += `
-                                <div class="relative">
-                                    <button
-                                        id="num-${i}"
-                                        class="number-btn w-full p-4 text-xl font-bold rounded-lg ${buttonClass} ${this.state.answered ? 'opacity-70' : 'opacity-100'}"
-                                        ${this.state.answered ? 'disabled' : ''}
-                                    >
-                                        ${i}
-                                    </button>
-                                </div>
+                                <button 
+                                    class="number-btn ${btnClass}" 
+                                    id="num-${i}" 
+                                    ${this.state.answered ? 'disabled' : ''}
+                                >
+                                    ${i}
+                                </button>
                             `;
                         }
                         
                         gameElement.innerHTML = `
-                            <div>
-                                <h1 class="text-3xl font-bold mb-4 text-blue-800 text-center">數字等式認知遊戲</h1>
-                                <div class="w-full max-w-md mx-auto">
-                                    <div class="flex justify-between mb-4 game-info">
-                                        <div class="text-lg">等級: <span class="font-bold">${this.state.level}</span></div>
-                                        <div class="text-lg">分數: <span class="font-bold">${this.state.score}</span></div>
-                                        <div class="text-lg">時間: <span class="font-bold">${this.state.timeLeft}</span></div>
+                            <h1>數字等式認知遊戲</h1>
+                            
+                            <div class="game-info">
+                                <div class="info-item">等級: <strong>${this.state.level}</strong></div>
+                                <div class="info-item">分數: <strong>${this.state.score}</strong></div>
+                                <div class="info-item">時間: <strong>${this.state.timeLeft}</strong></div>
+                            </div>
+                            
+                            <div class="question-box">
+                                <div class="question">${this.state.currentQuestion.question}</div>
+                                
+                                ${this.state.feedback ? `
+                                    <div class="feedback ${this.state.feedback.includes('正確') ? 'success' : 'error'}">
+                                        ${this.state.feedback}
                                     </div>
-                                    
-                                    <div class="bg-white rounded-lg p-6 shadow-md mb-6">
-                                        <h2 class="text-2xl text-center font-bold mb-4">${this.state.current?.question || ''}</h2>
-                                        
-                                        ${this.state.feedback ? `
-                                            <div class="text-center text-xl mb-4 ${this.state.feedback.includes('正確') ? 'text-green-600' : 'text-red-600'}">
-                                                ${this.state.feedback}
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                    
-                                    <div class="grid grid-cols-3 gap-4">
-                                        ${numbersHTML}
-                                    </div>
-                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="number-grid">
+                                ${numbersHTML}
                             </div>
                         `;
                         
-                        // 附加數字按鈕的事件監聽器
+                        // 添加事件監聽器
                         for (let i = 1; i <= 9; i++) {
-                            const numButton = document.getElementById(`num-${i}`);
-                            if (numButton && !this.state.answered) {
-                                this.addTouchHandlers(numButton, () => this.checkAnswer(i));
+                            const btn = document.getElementById(`num-${i}`);
+                            if (btn && !this.state.answered) {
+                                btn.addEventListener('click', () => this.checkAnswer(i));
                             }
                         }
                     }
-                } catch (error) {
-                    console.error('渲染遊戲出錯:', error);
-                    const gameElement = document.getElementById('game');
-                    if (gameElement) {
-                        gameElement.innerHTML = `
-                            <div class="text-center">
-                                <h1 class="text-3xl font-bold mb-4 text-red-600">出現錯誤</h1>
-                                <p class="mb-4">遊戲渲染時發生錯誤，請重新整理頁面。</p>
-                                <button onclick="location.reload()" class="px-6 py-2 bg-blue-500 text-white rounded-lg">
-                                    重新整理
-                                </button>
-                            </div>
-                        `;
-                    }
                 }
-            },
-
-            // 添加觸控事件處理
-            addTouchHandlers(element, callback) {
-                // 防止連續觸發多次
-                let isTouchActive = false;
-                
-                element.addEventListener('touchstart', function(e) {
-                    if (!isTouchActive) {
-                        isTouchActive = true;
-                        this.classList.add('active');
-                        e.preventDefault(); // 防止默認行為和其他事件
-                    }
-                }, { passive: false });
-                
-                element.addEventListener('touchend', function(e) {
-                    if (isTouchActive) {
-                        this.classList.remove('active');
-                        isTouchActive = false;
-                        callback();
-                        e.preventDefault(); // 防止默認行為和事件冒泡
-                    }
-                }, { passive: false });
-                
-                // 如果滑出按鈕區域，取消點擊
-                element.addEventListener('touchcancel', function() {
-                    this.classList.remove('active');
-                    isTouchActive = false;
-                });
-                
-                // 同時支持滑
+            };
+            
+            // 初始化遊戲
+            game.init();
+        });
+    </script>
+</body>
+</html>
