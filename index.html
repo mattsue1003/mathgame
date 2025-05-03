@@ -1,0 +1,448 @@
+import { useState, useEffect } from 'react';
+
+const CognitiveGame = () => {
+  const [gameState, setGameState] = useState({
+    level: 1,
+    score: 0,
+    totalAttempts: 0,
+    wrongAnswers: 0,
+    current: null,
+    answered: false,
+    feedback: '',
+    timeLeft: 30,
+    isPlaying: false,
+    questions: [],
+    gameMode: '30秒',
+    highScore: localStorage.getItem('highScore30') ? parseInt(localStorage.getItem('highScore30')) : 0,
+    highScore60: localStorage.getItem('highScore60') ? parseInt(localStorage.getItem('highScore60')) : 0,
+    recentGames: JSON.parse(localStorage.getItem('recentGames') || '[]')
+  });
+  
+  const [selectedNumber, setSelectedNumber] = useState(null);
+  
+  // Timer effect
+  useEffect(() => {
+    let timer;
+    if (gameState.isPlaying && gameState.timeLeft > 0) {
+      timer = setInterval(() => {
+        setGameState(prev => ({
+          ...prev,
+          timeLeft: prev.timeLeft - 1
+        }));
+      }, 1000);
+    } else if (gameState.timeLeft === 0 && gameState.isPlaying) {
+      endGame();
+    }
+    
+    return () => {
+      clearInterval(timer);
+    };
+  }, [gameState.timeLeft, gameState.isPlaying]);
+  
+  // Load high scores and recent games
+  useEffect(() => {
+    const highScore30 = localStorage.getItem('highScore30');
+    const highScore60 = localStorage.getItem('highScore60');
+    const recentGames = localStorage.getItem('recentGames');
+    
+    setGameState(prev => ({
+      ...prev,
+      highScore: highScore30 ? parseInt(highScore30) : 0,
+      highScore60: highScore60 ? parseInt(highScore60) : 0,
+      recentGames: recentGames ? JSON.parse(recentGames) : []
+    }));
+  }, []);
+
+  // Generate a question
+  const generateQuestion = () => {
+    // 定義難度基於等級，但最大值限制在9
+    const max = Math.min(9, 3 + gameState.level);
+    const min = Math.max(1, gameState.level - 2);
+    
+    // 決定是加法還是減法題目
+    const isAddition = Math.random() > 0.5;
+    
+    let a, b, result, question, answer;
+    
+    if (isAddition) {
+      // 加法題目
+      a = Math.floor(Math.random() * (max - min + 1)) + min;
+      b = Math.floor(Math.random() * (max - min + 1)) + min;
+      result = a + b;
+      
+      // 如果結果超過9，重新生成數字確保結果在1-9範圍內
+      if (result > 9) {
+        // 調整b使總和不超過9
+        b = Math.min(9 - a, b);
+        result = a + b;
+      }
+    } else {
+      // 減法題目 - 確保結果為正數且在1-9範圍內
+      // 先選擇結果
+      result = Math.floor(Math.random() * (max - min + 1)) + min;
+      // 選擇被減數，必須大於等於結果
+      a = result + Math.floor(Math.random() * (Math.min(9 - result, 9 - 1) + 1));
+      // 計算減數
+      b = a - result;
+    }
+    
+    // 決定隱藏哪個位置 (0 = 第一個數字, 1 = 第二個數字, 2 = 結果)
+    const position = Math.floor(Math.random() * 3);
+    
+    if (isAddition) {
+      switch (position) {
+        case 0:
+          question = `? + ${b} = ${result}`;
+          answer = a;
+          break;
+        case 1:
+          question = `${a} + ? = ${result}`;
+          answer = b;
+          break;
+        case 2:
+          question = `${a} + ${b} = ?`;
+          answer = result;
+          break;
+        default:
+          question = `${a} + ${b} = ?`;
+          answer = result;
+      }
+    } else {
+      switch (position) {
+        case 0:
+          question = `? - ${b} = ${result}`;
+          answer = a;
+          break;
+        case 1:
+          question = `${a} - ? = ${result}`;
+          answer = b;
+          break;
+        case 2:
+          question = `${a} - ${b} = ?`;
+          answer = result;
+          break;
+        default:
+          question = `${a} - ${b} = ?`;
+          answer = result;
+      }
+    }
+    
+    return { question, answer, position, isAddition };
+  };
+
+  // 切換遊戲模式
+  const switchGameMode = (mode) => {
+    setGameState(prev => ({
+      ...prev,
+      gameMode: mode,
+      highScore: mode === '30秒' ? prev.highScore : prev.highScore60
+    }));
+  };
+  
+  // Start new game
+  const startGame = () => {
+    const newQuestion = generateQuestion();
+    const questions = Array(50).fill(null).map(() => generateQuestion());
+    
+    setGameState(prev => ({
+      ...prev,
+      level: 1,
+      score: 0,
+      totalAttempts: 0,
+      wrongAnswers: 0,
+      current: newQuestion,
+      answered: false,
+      feedback: '',
+      timeLeft: prev.gameMode === '30秒' ? 30 : 60,
+      isPlaying: true,
+      questions: questions,
+      currentQuestionIndex: 0
+    }));
+    
+    setSelectedNumber(null);
+  };
+
+  // Check answer
+  const checkAnswer = (selected) => {
+    setSelectedNumber(selected);
+    
+    // 增加總嘗試次數
+    setGameState(prev => ({
+      ...prev,
+      totalAttempts: prev.totalAttempts + 1
+    }));
+    
+    const isCorrect = selected === gameState.current.answer;
+    
+    if (isCorrect) {
+      // Correct answer
+      const newScore = gameState.score + 1;
+      const newLevel = Math.floor(newScore / 3) + 1;
+      
+      // Move to next question or end game if all questions answered
+      if (gameState.currentQuestionIndex < gameState.questions.length - 1) {
+        // 立即更新得分和反饋
+        setGameState(prev => ({
+          ...prev,
+          score: newScore,
+          level: newLevel,
+          answered: true,
+          feedback: '正確！'
+        }));
+        
+        // 快速切換到下一題 (300ms)
+        setTimeout(() => {
+          setGameState(prev => ({
+            ...prev,
+            current: prev.questions[prev.currentQuestionIndex + 1],
+            currentQuestionIndex: prev.currentQuestionIndex + 1,
+            answered: false,
+            feedback: ''
+          }));
+          setSelectedNumber(null);
+        }, 300);
+      } else {
+        setTimeout(() => {
+          endGame();
+        }, 300);
+      }
+    } else {
+      // Wrong answer - 記錄答錯次數
+      setGameState(prev => ({
+        ...prev,
+        answered: true,
+        wrongAnswers: prev.wrongAnswers + 1,
+        feedback: `錯誤！正確答案是 ${gameState.current.answer}`
+      }));
+      
+      // 較快地移動到下一題
+      setTimeout(() => {
+        if (gameState.currentQuestionIndex < gameState.questions.length - 1) {
+          setGameState(prev => ({
+            ...prev,
+            current: prev.questions[prev.currentQuestionIndex + 1],
+            currentQuestionIndex: prev.currentQuestionIndex + 1,
+            answered: false,
+            feedback: ''
+          }));
+          setSelectedNumber(null);
+        } else {
+          endGame();
+        }
+      }, 800); // 錯誤時給用戶稍多一點時間查看正確答案
+    }
+  };
+
+  // 計算PR值 (百分位排名)
+  const calculatePR = (score) => {
+    // 模擬常模數據 - 在實際應用中，這應該是基於真實數據的分佈
+    const normalDistribution = {
+      // [平均分數, 標準差]
+      '30秒': [12, 5], 
+      '60秒': [24, 8]
+    };
+    
+    const [mean, stdDev] = normalDistribution[gameState.gameMode];
+    
+    // 計算z分數
+    const zScore = (score - mean) / stdDev;
+    
+    // 轉換為PR值 (使用正態分佈累積函數的近似值)
+    const pr = Math.round(100 * (0.5 + 0.5 * Math.tanh(Math.sqrt(Math.PI/8) * zScore)));
+    
+    return Math.min(Math.max(pr, 1), 99); // 確保PR值在1-99之間
+  };
+
+  // 格式化時間，只保留到分鐘
+  const formatTime = (date) => {
+    const dateObj = new Date(date);
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    const hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes();
+    
+    return `${month}/${day} ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
+  // End game
+  const endGame = () => {
+    const currentScore = gameState.score;
+    const currentMode = gameState.gameMode;
+    const highScoreKey = currentMode === '30秒' ? 'highScore30' : 'highScore60';
+    const currentHighScore = currentMode === '30秒' ? gameState.highScore : gameState.highScore60;
+    
+    // 計算PR值
+    const pr = calculatePR(currentScore);
+    
+    // 計算正確率
+    const accuracy = gameState.totalAttempts > 0 
+      ? Math.round((gameState.score / gameState.totalAttempts) * 100) 
+      : 0;
+    
+    // 更新最高分
+    if (currentScore > currentHighScore) {
+      localStorage.setItem(highScoreKey, currentScore.toString());
+      
+      if (currentMode === '30秒') {
+        setGameState(prev => ({
+          ...prev,
+          highScore: currentScore,
+          isPlaying: false
+        }));
+      } else {
+        setGameState(prev => ({
+          ...prev,
+          highScore60: currentScore,
+          isPlaying: false
+        }));
+      }
+    }
+    
+    // 更新最近遊戲記錄，使用格式化的時間
+    const newGame = {
+      date: formatTime(new Date()),
+      mode: currentMode,
+      score: currentScore,
+      wrongAnswers: gameState.wrongAnswers,
+      pr: pr,
+      accuracy: accuracy,
+      attempts: gameState.totalAttempts
+    };
+    
+    const updatedRecentGames = [newGame, ...gameState.recentGames.slice(0, 2)];
+    localStorage.setItem('recentGames', JSON.stringify(updatedRecentGames));
+    
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      recentGames: updatedRecentGames,
+      feedback: `遊戲結束！答對：${currentScore}題，答錯：${gameState.wrongAnswers}題，正確率：${accuracy}%，PR值：${pr}`
+    }));
+  };
+
+  // Generate number options (1-9)
+  const generateOptions = () => {
+    // 僅返回1-9的數字選項
+    return Array.from({ length: 9 }, (_, i) => i + 1);
+  };
+  
+  return (
+    <div className="flex flex-col items-center justify-center p-4 min-h-screen bg-blue-50">
+      <h1 className="text-3xl font-bold mb-4 text-blue-800">數字等式認知遊戲</h1>
+      
+      {!gameState.isPlaying ? (
+        <div className="text-center">
+          <p className="mb-4 text-lg">{gameState.feedback || '歡迎來到數字等式認知遊戲！請選擇時間模式並點擊開始按鈕。'}</p>
+          
+          <div className="mb-6 flex justify-center gap-4">
+            <button 
+              onClick={() => switchGameMode('30秒')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                gameState.gameMode === '30秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
+              }`}
+            >
+              30秒模式
+            </button>
+            <button 
+              onClick={() => switchGameMode('60秒')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                gameState.gameMode === '60秒' ? 'bg-blue-600 text-white' : 'bg-blue-200 text-blue-800'
+              }`}
+            >
+              60秒模式
+            </button>
+          </div>
+          
+          <div className="mb-6">
+            <p className="text-lg">目前模式: <span className="font-bold">{gameState.gameMode}</span></p>
+            <p className="text-lg">
+              最高紀錄: <span className="font-bold">
+                {gameState.gameMode === '30秒' ? gameState.highScore : gameState.highScore60}
+              </span>
+            </p>
+          </div>
+          
+          {/* 顯示最近的遊戲記錄 */}
+          {gameState.recentGames.length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-xl font-bold mb-2">最近遊戲記錄:</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white rounded-lg overflow-hidden shadow-md">
+                  <thead className="bg-blue-100">
+                    <tr>
+                      <th className="py-2 px-4 text-left">時間</th>
+                      <th className="py-2 px-4 text-left">模式</th>
+                      <th className="py-2 px-4 text-left">答對數</th>
+                      <th className="py-2 px-4 text-left">答錯數</th>
+                      <th className="py-2 px-4 text-left">正確率</th>
+                      <th className="py-2 px-4 text-left">PR值</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gameState.recentGames.map((game, index) => (
+                      <tr key={index} className={index % 2 === 0 ? 'bg-blue-50' : 'bg-white'}>
+                        <td className="py-2 px-4">{game.date}</td>
+                        <td className="py-2 px-4">{game.mode}</td>
+                        <td className="py-2 px-4">{game.score}</td>
+                        <td className="py-2 px-4">{game.wrongAnswers || '—'}</td>
+                        <td className="py-2 px-4">{game.accuracy || '—'}%</td>
+                        <td className="py-2 px-4">{game.pr}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          
+          <button 
+            onClick={startGame}
+            className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+          >
+            開始遊戲
+          </button>
+        </div>
+      ) : (
+        <div className="w-full max-w-md">
+          <div className="flex justify-between mb-4">
+            <div className="text-lg">等級: <span className="font-bold">{gameState.level}</span></div>
+            <div className="text-lg">分數: <span className="font-bold">{gameState.score}</span></div>
+            <div className="text-lg">時間: <span className="font-bold">{gameState.timeLeft}</span></div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-6 shadow-md mb-6">
+            <h2 className="text-2xl text-center font-bold mb-4">{gameState.current?.question}</h2>
+            
+            {gameState.feedback && (
+              <div className={`text-center text-xl mb-4 ${gameState.feedback.includes('正確') ? 'text-green-600' : 'text-red-600'}`}>
+                {gameState.feedback}
+              </div>
+            )}
+          </div>
+          
+          <div className="grid grid-cols-3 gap-4">
+            {generateOptions().map(num => (
+              <button
+                key={num}
+                onClick={() => !gameState.answered && checkAnswer(num)}
+                disabled={gameState.answered}
+                className={`p-4 text-xl font-bold rounded-lg transition-all 
+                  ${selectedNumber === num 
+                    ? (selectedNumber === gameState.current?.answer 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-red-500 text-white')
+                    : 'bg-blue-100 hover:bg-blue-200'
+                  } 
+                  ${gameState.answered ? 'opacity-70' : 'opacity-100'}`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default CognitiveGame;
